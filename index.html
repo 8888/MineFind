@@ -1,0 +1,120 @@
+<html>
+<head><title>Mine Find</title></head>
+<body bgcolor="#24AF69">
+	<canvas id="canvasElement" width="640" height="640" style="background-color: #F0F8FF;"></canvas>
+	<script type="text/javascript">
+		'use strict';
+		var canvas = document.getElementById("canvasElement");
+		canvas.tabIndex = 0;
+		canvas.focus();
+
+		var canvas_width = canvas.width;
+		var canvas_height = canvas.height;
+		var canvas_bounds = canvas.getBoundingClientRect();
+		var ctx = canvas.getContext("2d");
+
+        var mouseX = null,
+            mouseY = null;
+
+        var State = null;
+        var Game = null;
+
+		function init() {
+            class GameState {
+                // State of the game
+                constructor() {
+                    this.new_game = 0b00000001;
+                    this.game_over = 0b00010000;
+                }
+            }
+
+            class Space {
+                // Space on the gameboard
+                constructor() {
+                    this.has_mine = false;
+                    this.clicked = false;
+                    this.was_flagged = false;
+                }
+            }
+
+            class Game {
+                // Main game logic
+                constructor() {
+                    this.board = null;
+                }
+
+                create_board(mines, width, height) {
+                    // Returns an array of a board of size width x height with a given number of mines
+                    var board_length = width * height;
+                    var board = [];
+                    for (var s = 0; s < board_length; s++) { // add the spaces
+                        board.push(new Space);
+                    }
+                    for (var m = 0; m < mines; m++) { // add the mines
+                        let index = this.rng(0, board_length);
+                        if (board[index].has_mine) {
+                            m--; // Can not add a mine twice, try a different space
+                        } else {
+                            board[index].has_mine = true;
+                        }
+                    }
+                    return board;
+                }
+
+                rng(min, max) {
+                    // Returns a random integer between min(inclusive) and max(exclusive)
+                    return Math.floor(Math.random() * (max - min)) + min;
+                }
+
+                new_game() {
+                    this.board = this.create_board(10, 9, 9);
+                }
+            }
+
+            State = new GameState();
+            Game = new Game();
+            Game.new_game();
+
+            // Tests -- Uncomment to run
+            //Test.test_board(Game.board, 81, 10);
+		}
+
+		//Handle User Input
+		canvas.addEventListener("mousedown", function(event) {
+			console.log("x: ", mouseX);
+            console.log("y: ", mouseY);
+		});
+		canvas.addEventListener("mousemove", function(event) {
+			mouseX = event.clientX - canvas_bounds.left;
+			mouseY = event.clientY - canvas_bounds.top;
+		});
+
+		var gameDelta = null,
+            frameCount = 0;
+		function update(delta) {
+			gameDelta = delta;
+            frameCount++;
+		}
+
+		function display() {
+			ctx.clearRect(0, 0, canvas_width, canvas_height);
+
+            function draw_board(board) {
+
+            }
+		}
+
+		window.onload = function() {
+			init();
+			var mainloop_updateLast = performance.now();
+			(function mainLoop(nowTime) {
+				update(nowTime - mainloop_updateLast);
+				display();
+				mainloop_updateLast = nowTime;
+				requestAnimationFrame(mainLoop);
+			})(performance.now());
+		}
+	</script>
+    <script type="text/javascript" src="test/test.js"></script>
+</body>
+</html>
