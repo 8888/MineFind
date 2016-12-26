@@ -18,6 +18,9 @@
 
         var State = null;
         var Game = null;
+        var mine_count = 0;
+        var board_width = 0;
+        var board_height = 0;
 
 		function init() {
             class GameState {
@@ -34,6 +37,7 @@
                     this.has_mine = false;
                     this.clicked = false;
                     this.was_flagged = false;
+                    this.adjacent_mines = 0;
                 }
             }
 
@@ -58,6 +62,33 @@
                             board[index].has_mine = true;
                         }
                     }
+                    // add the adjacent mine counter
+                    for (var x = 0; x < board_length; x++) { // TODO: This doesn't work properly, the last element of row 1 evaluates as adjacent to the first element of row 2. Ex index 8 and 9.
+                        if (!board[x].has_mine) { // spaces with mines do not show a number
+                            var mines_near = 0;
+                            var spaces_to_check = []; // 8 possible spaces
+                            spaces_to_check.push(x - board_width - 1); // top left
+                            spaces_to_check.push(x - board_width); // top mid
+                            spaces_to_check.push(x - board_width + 1); // top right
+                            spaces_to_check.push(x - 1); // mid left
+                            spaces_to_check.push(x + 1); // mid right
+                            spaces_to_check.push(x + board_width - 1); // bot left
+                            spaces_to_check.push(x + board_width); // bot mid
+                            spaces_to_check.push(x + board_width + 1); // bot right
+                            for (var oor = 0; oor < spaces_to_check.length; oor++) { // check for out of range of array
+                                if (spaces_to_check[oor] < 0 || spaces_to_check[oor] >= board_length) {
+                                    spaces_to_check.splice(oor, 1) // (index, number of elements to remove)
+                                    oor -= 1;
+                                }
+                            }
+                            for (var c = 0; c < spaces_to_check.length; c++) {
+                                if (board[spaces_to_check[c]].has_mine) {
+                                    mines_near += 1;
+                                }
+                            }
+                            board[x].adjacent_mines = mines_near;
+                        }
+                    }
                     return board;
                 }
 
@@ -67,16 +98,19 @@
                 }
 
                 new_game() {
-                    this.board = this.create_board(10, 9, 9);
+                    this.board = this.create_board(mine_count, board_width, board_height);
                 }
             }
 
+            mine_count = 10;
+            board_width = 9;
+            board_height = 9;
             State = new GameState();
             Game = new Game();
             Game.new_game();
 
             // Tests -- Uncomment to run
-            //Test.test_board(Game.board, 81, 10);
+            //Test.test_board(Game.board, board_width * board_height, mine_count);
 		}
 
 		//Handle User Input
