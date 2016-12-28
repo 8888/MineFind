@@ -50,43 +50,47 @@
                 create_board(mines, width, height) {
                     // Returns an array of a board of size width x height with a given number of mines
                     var board_length = width * height;
-                    var board = [];
-                    for (var s = 0; s < board_length; s++) { // add the spaces
-                        board.push(new Space);
+                    var board = []; // matrix of spaces. row x column
+                    for (let r = 0; r < board_height; r++) { // add the spaces
+                        let row = [];
+                        for (let c = 0; c < board_width; c++) {
+                            row.push(new Space);
+                        }
+                        board.push(row);
                     }
                     for (var m = 0; m < mines; m++) { // add the mines
-                        let index = this.rng(0, board_length);
-                        if (board[index].has_mine) {
-                            m--; // Can not add a mine twice, try a different space
+                        let indexR = this.rng(0, board_height); // row to place the mine
+                        let indexC = this.rng(0, board_width); // column to place the mine
+                        if (board[indexR][indexC].has_mine) {
+                           m--; // Can not add a mine twice, try a different space
                         } else {
-                            board[index].has_mine = true;
+                            board[indexR][indexC].has_mine = true;
                         }
                     }
-                    // add the adjacent mine counter
-                    for (var x = 0; x < board_length; x++) { // TODO: This doesn't work properly, the last element of row 1 evaluates as adjacent to the first element of row 2. Ex index 8 and 9.
-                        if (!board[x].has_mine) { // spaces with mines do not show a number
-                            var mines_near = 0;
-                            var spaces_to_check = []; // 8 possible spaces
-                            spaces_to_check.push(x - board_width - 1); // top left
-                            spaces_to_check.push(x - board_width); // top mid
-                            spaces_to_check.push(x - board_width + 1); // top right
-                            spaces_to_check.push(x - 1); // mid left
-                            spaces_to_check.push(x + 1); // mid right
-                            spaces_to_check.push(x + board_width - 1); // bot left
-                            spaces_to_check.push(x + board_width); // bot mid
-                            spaces_to_check.push(x + board_width + 1); // bot right
-                            for (var oor = 0; oor < spaces_to_check.length; oor++) { // check for out of range of array
-                                if (spaces_to_check[oor] < 0 || spaces_to_check[oor] >= board_length) {
-                                    spaces_to_check.splice(oor, 1) // (index, number of elements to remove)
-                                    oor -= 1;
+                    for (let row = 0; row < board.length; row++) { // add the adjacent-mine counter
+                        for (let col = 0; col < board[row].length; col++) {
+                            if (!board[row][col].has_mine) { // spaces with mines do not show a number
+                                let mines_near = 0;
+                                let spaces_to_check = [];
+                                spaces_to_check.push([row - 1, col - 1]); // top left
+                                spaces_to_check.push([row - 1, col]); // top mid
+                                spaces_to_check.push([row - 1, col + 1]); // top right
+                                spaces_to_check.push([row, col - 1]); // mid left
+                                spaces_to_check.push([row, col + 1]); // mid right
+                                spaces_to_check.push([row + 1, col - 1]); // bot left
+                                spaces_to_check.push([row + 1, col]); // bot mid
+                                spaces_to_check.push([row + 1, col + 1]); // bot right
+                                for (let s = 0; s < spaces_to_check.length; s++) {
+                                    let spaceR = spaces_to_check[s][0]; // row
+                                    let spaceC = spaces_to_check[s][1]; // col
+                                    if (spaceR >= 0 && spaceR < board.length && spaceC >= 0 && spaceC < board[row].length) { // check for out of range
+                                        if (board[spaceR][spaceC].has_mine) {
+                                            mines_near++;
+                                        }
+                                    }
                                 }
+                                board[row][col].adjacent_mines = mines_near;
                             }
-                            for (var c = 0; c < spaces_to_check.length; c++) {
-                                if (board[spaces_to_check[c]].has_mine) {
-                                    mines_near += 1;
-                                }
-                            }
-                            board[x].adjacent_mines = mines_near;
                         }
                     }
                     return board;
@@ -110,7 +114,7 @@
             Game.new_game();
 
             // Tests -- Uncomment to run
-            //Test.test_board(Game.board, board_width * board_height, mine_count);
+            Test.test_board(Game.board, board_width, board_height, mine_count);
 		}
 
 		//Handle User Input

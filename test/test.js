@@ -6,21 +6,24 @@ class Tests {
 
     }
 
-    test_board(board, expected_length, expected_mines) {
+    test_board(board, board_width, board_height, expected_mines) {
         // Tests the boards parameters
-        var board_length = board.length;
-        var mines = 0;
-        var mine_locations = []; // index of space containing a mine
-        for (var m = 0; m < board_length; m++) {
-            if (board[m].has_mine) {
-                mines++;
-                mine_locations.push(m);
+        let board_length = 0;
+        let mines = 0;
+        let mine_locations = []; // index of space containing a mines
+        for (let row = 0; row < board.length; row++) {
+            board_length += board[row].length;
+            for (let col = 0; col < board[row].length; col++) {
+                if (board[row][col].has_mine) {
+                    mines++;
+                    mine_locations.push("Row: " + row + " Col: " + col);
+                }
             }
         }
         console.log("found -- expected");
-        console.log("Board length: ", board_length, " -- ", expected_length);
+        console.log("Board length: ", board_length, " -- ", board_width * board_height);
         console.log("Mine count: ", mines, " -- ", expected_mines);
-        console.log(mine_locations);
+        console.log("Mine locations: ", mine_locations);
     }
 }
 
