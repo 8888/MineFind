@@ -22,7 +22,6 @@
         var board_width = 0;
         var board_height = 0;
 
-        var space_size = 20;
         var border_width = 2;
         var display_divider = 10;
         var header_height = 40;
@@ -122,10 +121,10 @@
             Game.new_game();
 
             // Tests -- Uncomment to run
-            Test.test_board(Game.board, board_width, board_height, mine_count);
+            //Test.test_board(Game.board, board_width, board_height, mine_count);
 		}
 
-		//Handle User Input
+		// Handle User Input
 		canvas.addEventListener("mousedown", function(event) {
 			console.log("x: ", mouseX);
             console.log("y: ", mouseY);
@@ -142,83 +141,77 @@
             frameCount++;
 		}
 
+        // Draw elements to the screen
 		function display() {
 			ctx.clearRect(0, 0, canvas_width, canvas_height);
 
             function draw_board() {
                 let originX = canvas_bounds.left + 50;
                 let originY = canvas_bounds.top + 50;
-                // Display background
                 let display_width = display_divider + (board_width * space_size) + display_divider;
                 let display_height = display_divider + header_height + display_divider + (board_height * space_size) + display_divider;
-                ctx.fillStyle = "#bfbfbf";  // light gray
-                ctx.fillRect(originX, originY, display_width, display_height);
                 
-                // Outer borders
-                ctx.beginPath();
-                ctx.strokeStyle = "#ffffff"; // white
-                ctx.moveTo(originX, originY);
-                ctx.lineTo(originX + display_width, originY);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#777777"; // dark gray
-                ctx.moveTo(originX + display_width, originY);
-                ctx.lineTo(originX + display_width, originY + display_height);
-                ctx.lineTo(originX, originY + display_height);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#ffffff"; // white
-                ctx.moveTo(originX, originY + display_height);
-                ctx.lineTo(originX, originY);
-                ctx.stroke();
-
-                // header borders
-                ctx.beginPath();
-                ctx.strokeStyle = "#777777"; // dark gray
-                ctx.moveTo(originX + display_divider, originY + display_divider);
-                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#ffffff"; // white
-                ctx.moveTo(originX + display_divider + (board_width * space_size), originY + display_divider);
-                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height);
-                ctx.lineTo(originX + display_divider, originY + display_divider + header_height);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#777777"; // dark gray
-                ctx.moveTo(originX + display_divider, originY + display_divider + header_height);
-                ctx.lineTo(originX + display_divider, originY + display_divider);
-                ctx.stroke();
-
-                // inner borders
-                ctx.beginPath();
-                ctx.strokeStyle = "#777777"; // dark gray
-                ctx.moveTo(originX + display_divider, originY + display_divider + header_height + display_divider);
-                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height + display_divider);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#ffffff"; // white
-                ctx.moveTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height + display_divider);
-                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height + display_divider + (board_height * space_size));
-                ctx.lineTo(originX + display_divider, originY + display_divider + header_height + display_divider + (board_height * space_size));
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#777777"; // dark gray
-                ctx.moveTo(originX + display_divider, originY + display_divider + header_height + display_divider + (board_height * space_size));
-                ctx.lineTo(originX + display_divider, originY + display_divider + header_height + display_divider);
-                ctx.stroke();
-
+                rect_with_border( // background
+                    ctx,
+                    originX,
+                    originY,
+                    display_width,
+                    display_height,
+                    "#ffffff", // white
+                    "#777777", // dark gray
+                    "#777777",
+                    "#ffffff",
+                    border_width,
+                    true,
+                    "#bfbfbf" // light gray
+                );
+                rect_with_border( // header borders
+                    ctx, 
+                    originX + display_divider - (border_width / 2), 
+                    originY + display_divider, 
+                    board_width * space_size + border_width, 
+                    header_height, 
+                    "#777777", 
+                    "#ffffff", 
+                    "#ffffff", 
+                    "#777777", 
+                    border_width, 
+                    false
+                );
+                rect_with_border( // inner borders
+                    ctx, 
+                    originX + display_divider - (border_width / 2),
+                    originY + display_divider + header_height + display_divider - (border_width / 2), 
+                    board_width * space_size + border_width, 
+                    board_height * space_size + border_width, 
+                    "#777777", 
+                    "#ffffff", 
+                    "#ffffff", 
+                    "#777777", 
+                    border_width,
+                    false
+                );
                 // spaces
                 let space_originX = originX + display_divider;
                 let space_originY = originY + display_divider + header_height + display_divider; // sets a 0,0 at the game board
                 for (let row = 0; row < Game.board.length; row++) {
                     for (let col = 0; col < Game.board[row].length; col++) {
+                        // draw the grid beheind the unclicked spaces
+                        if (row === 0 && col > 0) { // row: only draw once when making the first row. col: dont draw on the border
+                            ctx.beginPath() // verticle grid lines
+                            ctx.strokeStyle = "#777777"; // dark gray
+                            ctx.moveTo(space_originX + (col * space_size), space_originY);
+                            ctx.lineTo(space_originX + (col * space_size), space_originY + (Game.board[row].length * space_size));
+                            ctx.stroke();
+                        }
+                        if (col === 0 && row > 0) {
+                            ctx.beginPath() // horizontal grid lines
+                            ctx.strokeStyle = "#777777"; // dark gray
+                            ctx.moveTo(space_originX, space_originY + (row * space_size));
+                            ctx.lineTo(space_originX + (Game.board.length * space_size), space_originY + (row * space_size));
+                            ctx.stroke();
+                        }
+                        // draw the individual spaces
                         if (Game.board[row][col].clicked) {
                             if (Game.board[row][col].has_mine) {
                                 // draw a mine
@@ -226,27 +219,53 @@
                                 // draw the number of mines
                             }
                         } else { // space was not clicked
-                            ctx.beginPath();
-                            ctx.strokeStyle = "#ffffff"; // white
-                            ctx.moveTo(space_originX + (col * space_size), space_originY + (row * space_size));
-                            ctx.lineTo(space_originX + (col * space_size) + space_size, space_originY + (row * space_size));
-                            ctx.stroke();
-
-                            ctx.beginPath();
-                            ctx.strokeStyle = "#777777"; // dark gray
-                            ctx.moveTo(space_originX + (col * space_size) + space_size, space_originY + (row * space_size));
-                            ctx.lineTo(space_originX + (col * space_size) + space_size, space_originY + (row * space_size) + space_size);
-                            ctx.lineTo(space_originX + (col * space_size), space_originY + (row * space_size) + space_size);
-                            ctx.stroke();
-
-                            ctx.beginPath();
-                            ctx.strokeStyle = "#ffffff"; // white
-                            ctx.moveTo(space_originX + (col * space_size), space_originY + (row * space_size) + space_size);
-                            ctx.lineTo(space_originX + (col * space_size), space_originY + (row * space_size));
-                            ctx.stroke();
+                            rect_with_border( // background
+                                ctx,
+                                space_originX + (col * space_size),
+                                space_originY + (row * space_size),
+                                space_size,
+                                space_size,
+                                "#ffffff",
+                                "#777777",
+                                "#777777",
+                                "#ffffff",
+                                border_width,
+                                false
+                            );
                         }
                     }
                 }
+            }
+
+            function rect_with_border(ctx, x, y, width, height, upper_color, right_color, lower_color, left_color, border_size, fill, fill_color) {
+                if (fill) {
+                    ctx.fillStyle = fill_color;
+                    ctx.fillRect(x, y, width, height);
+                }
+                // upper border
+                ctx.beginPath();
+                ctx.strokeStyle = upper_color;
+                ctx.moveTo(x, y + (border_size / 2));
+                ctx.lineTo(x + width, y + (border_size / 2));
+                ctx.stroke();
+                // right border
+                ctx.beginPath();
+                ctx.strokeStyle = right_color;
+                ctx.moveTo(x + width - (border_size / 2), y);
+                ctx.lineTo(x + width - (border_size / 2), y + height);
+                ctx.stroke();
+                // lower border
+                ctx.beginPath();
+                ctx.strokeStyle = lower_color;
+                ctx.moveTo(x + width, y + height - (border_size / 2));
+                ctx.lineTo(x, y + height - (border_size / 2));
+                ctx.stroke();
+                // left border
+                ctx.beginPath();
+                ctx.strokeStyle = left_color;
+                ctx.moveTo(x + (border_size / 2), y + height);
+                ctx.lineTo(x + (border_size / 2), y);
+                ctx.stroke();
             }
 
             draw_board();
