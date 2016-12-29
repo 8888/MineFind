@@ -1,7 +1,7 @@
 <html>
 <head><title>Mine Find</title></head>
-<body bgcolor="#24AF69">
-	<canvas id="canvasElement" width="640" height="640" style="background-color: #F0F8FF;"></canvas>
+<body bgcolor="#ccddff">
+	<canvas id="canvasElement" width="640" height="640"></canvas>
 	<script type="text/javascript">
 		'use strict';
 		var canvas = document.getElementById("canvasElement");
@@ -22,6 +22,12 @@
         var board_width = 0;
         var board_height = 0;
 
+        var space_size = 20;
+        var border_width = 2;
+        var display_divider = 10;
+        var header_height = 40;
+        var space_size = 20;
+
 		function init() {
             class GameState {
                 // State of the game
@@ -41,10 +47,11 @@
                 }
             }
 
-            class Game {
+            class GameLogic {
                 // Main game logic
                 constructor() {
                     this.board = null;
+                    this.state = null;
                 }
 
                 create_board(mines, width, height) {
@@ -103,6 +110,7 @@
 
                 new_game() {
                     this.board = this.create_board(mine_count, board_width, board_height);
+                    this.state = State.new_game;
                 }
             }
 
@@ -110,7 +118,7 @@
             board_width = 9;
             board_height = 9;
             State = new GameState();
-            Game = new Game();
+            Game = new GameLogic();
             Game.new_game();
 
             // Tests -- Uncomment to run
@@ -137,9 +145,111 @@
 		function display() {
 			ctx.clearRect(0, 0, canvas_width, canvas_height);
 
-            function draw_board(board) {
+            function draw_board() {
+                let originX = canvas_bounds.left + 50;
+                let originY = canvas_bounds.top + 50;
+                // Display background
+                let display_width = display_divider + (board_width * space_size) + display_divider;
+                let display_height = display_divider + header_height + display_divider + (board_height * space_size) + display_divider;
+                ctx.fillStyle = "#bfbfbf";  // light gray
+                ctx.fillRect(originX, originY, display_width, display_height);
+                
+                // Outer borders
+                ctx.beginPath();
+                ctx.strokeStyle = "#ffffff"; // white
+                ctx.moveTo(originX, originY);
+                ctx.lineTo(originX + display_width, originY);
+                ctx.stroke();
 
+                ctx.beginPath();
+                ctx.strokeStyle = "#777777"; // dark gray
+                ctx.moveTo(originX + display_width, originY);
+                ctx.lineTo(originX + display_width, originY + display_height);
+                ctx.lineTo(originX, originY + display_height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.strokeStyle = "#ffffff"; // white
+                ctx.moveTo(originX, originY + display_height);
+                ctx.lineTo(originX, originY);
+                ctx.stroke();
+
+                // header borders
+                ctx.beginPath();
+                ctx.strokeStyle = "#777777"; // dark gray
+                ctx.moveTo(originX + display_divider, originY + display_divider);
+                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.strokeStyle = "#ffffff"; // white
+                ctx.moveTo(originX + display_divider + (board_width * space_size), originY + display_divider);
+                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height);
+                ctx.lineTo(originX + display_divider, originY + display_divider + header_height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.strokeStyle = "#777777"; // dark gray
+                ctx.moveTo(originX + display_divider, originY + display_divider + header_height);
+                ctx.lineTo(originX + display_divider, originY + display_divider);
+                ctx.stroke();
+
+                // inner borders
+                ctx.beginPath();
+                ctx.strokeStyle = "#777777"; // dark gray
+                ctx.moveTo(originX + display_divider, originY + display_divider + header_height + display_divider);
+                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height + display_divider);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.strokeStyle = "#ffffff"; // white
+                ctx.moveTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height + display_divider);
+                ctx.lineTo(originX + display_divider + (board_width * space_size), originY + display_divider + header_height + display_divider + (board_height * space_size));
+                ctx.lineTo(originX + display_divider, originY + display_divider + header_height + display_divider + (board_height * space_size));
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.strokeStyle = "#777777"; // dark gray
+                ctx.moveTo(originX + display_divider, originY + display_divider + header_height + display_divider + (board_height * space_size));
+                ctx.lineTo(originX + display_divider, originY + display_divider + header_height + display_divider);
+                ctx.stroke();
+
+                // spaces
+                let space_originX = originX + display_divider;
+                let space_originY = originY + display_divider + header_height + display_divider; // sets a 0,0 at the game board
+                for (let row = 0; row < Game.board.length; row++) {
+                    for (let col = 0; col < Game.board[row].length; col++) {
+                        if (Game.board[row][col].clicked) {
+                            if (Game.board[row][col].has_mine) {
+                                // draw a mine
+                            } else if (Game.board[row][col].adjacent_mines > 0) {
+                                // draw the number of mines
+                            }
+                        } else { // space was not clicked
+                            ctx.beginPath();
+                            ctx.strokeStyle = "#ffffff"; // white
+                            ctx.moveTo(space_originX + (col * space_size), space_originY + (row * space_size));
+                            ctx.lineTo(space_originX + (col * space_size) + space_size, space_originY + (row * space_size));
+                            ctx.stroke();
+
+                            ctx.beginPath();
+                            ctx.strokeStyle = "#777777"; // dark gray
+                            ctx.moveTo(space_originX + (col * space_size) + space_size, space_originY + (row * space_size));
+                            ctx.lineTo(space_originX + (col * space_size) + space_size, space_originY + (row * space_size) + space_size);
+                            ctx.lineTo(space_originX + (col * space_size), space_originY + (row * space_size) + space_size);
+                            ctx.stroke();
+
+                            ctx.beginPath();
+                            ctx.strokeStyle = "#ffffff"; // white
+                            ctx.moveTo(space_originX + (col * space_size), space_originY + (row * space_size) + space_size);
+                            ctx.lineTo(space_originX + (col * space_size), space_originY + (row * space_size));
+                            ctx.stroke();
+                        }
+                    }
+                }
             }
+
+            draw_board();
 		}
 
 		window.onload = function() {
