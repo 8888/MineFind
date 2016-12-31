@@ -23,6 +23,8 @@
         var mine_count = 0;
         var board_width = 0;
         var board_height = 0;
+        var flags_placed = 0;
+        var losing_mine = []; // row and col of losing mine       
         // display parameters
         var display_offsetX = 50;
         var display_offsetY = 50;
@@ -35,8 +37,9 @@
             class GameState {
                 // State of the game
                 constructor() {
-                    this.new_game = 0b00000001;
-                    this.game_over = 0b00010000;
+                    this.menu = "Menu";
+                    this.new_game = "New Game";
+                    this.game_over = "Game Over";
                 }
             }
 
@@ -96,26 +99,16 @@
                             board[indexR][indexC].has_mine = true;
                         }
                     }
-                    for (let row = 0; row < board.length; row++) { // add the adjacent-mine counter
+                    for (let row = 0; row < board.length; row++) { // add the adjacent mine counter
                         for (let col = 0; col < board[row].length; col++) {
                             if (!board[row][col].has_mine) { // spaces with mines do not show a number
                                 let mines_near = 0;
-                                let spaces_to_check = [];
-                                spaces_to_check.push([row - 1, col - 1]); // top left
-                                spaces_to_check.push([row - 1, col]); // top mid
-                                spaces_to_check.push([row - 1, col + 1]); // top right
-                                spaces_to_check.push([row, col - 1]); // mid left
-                                spaces_to_check.push([row, col + 1]); // mid right
-                                spaces_to_check.push([row + 1, col - 1]); // bot left
-                                spaces_to_check.push([row + 1, col]); // bot mid
-                                spaces_to_check.push([row + 1, col + 1]); // bot right
+                                let spaces_to_check = this.adjacent_spaces(row, col);
                                 for (let s = 0; s < spaces_to_check.length; s++) {
                                     let spaceR = spaces_to_check[s][0]; // row
                                     let spaceC = spaces_to_check[s][1]; // col
-                                    if (spaceR >= 0 && spaceR < board.length && spaceC >= 0 && spaceC < board[row].length) { // check for out of range
-                                        if (board[spaceR][spaceC].has_mine) {
-                                            mines_near++;
-                                        }
+                                    if (board[spaceR][spaceC].has_mine) {
+                                        mines_near++;
                                     }
                                 }
                                 board[row][col].adjacent_mines = mines_near;
@@ -130,18 +123,75 @@
                     return Math.floor(Math.random() * (max - min)) + min;
                 }
 
+                adjacent_spaces(row, col) {
+                    // returns an array of indexes of adjacent spaces from a given row and col
+                    // the spaces that would result in being out of range of the board are removed
+                    let spaces = [];
+                    spaces.push([row - 1, col - 1]); // top left
+                    spaces.push([row - 1, col]); // top mid
+                    spaces.push([row - 1, col + 1]); // top right
+                    spaces.push([row, col - 1]); // mid left
+                    spaces.push([row, col + 1]); // mid right
+                    spaces.push([row + 1, col - 1]); // bot left
+                    spaces.push([row + 1, col]); // bot mid
+                    spaces.push([row + 1, col + 1]); // bot right
+                    // check for out of range
+                    for (let s = 0; s < spaces.length;) {
+                        let spaceR = spaces[s][0]; // row
+                        let spaceC = spaces[s][1]; // col
+                        if (spaceR >= 0 && spaceR < board_height && spaceC >= 0 && spaceC < board_width) { // check for out of range
+                            s++
+                        } else { // out of range
+                            spaces.splice(s, 1); // remove that space
+                        }
+                    }
+                    return spaces; // returns array of [row,col]
+                }
+
                 new_game() {
                     this.board = this.create_board(mine_count, board_width, board_height);
+                    losing_mine = [];
+                    flags_placed = 0;
                     this.state = State.new_game;
                 }
 
                 click_space(row, col) {
-                    if (!this.board[row][col].clicked) {
-                        this.board[row][col].clicked = true;
+                    let space = this.board[row][col];
+                    if (!space.clicked) {
+                        space.clicked = true;
+                        if (space.has_mine) {
+                            // game over
+                            losing_mine = [row, col];
+                            this.game_over();
+                        } else if (space.adjacent_mines === 0) {
+                            // open adjacent non-mine spaces
+                            let spaces_to_check = this.adjacent_spaces(row, col); // returns array of [row,col]
+                            for (let s = 0; s < spaces_to_check.length; s++) {
+                                let spaceR = spaces_to_check[s][0]; // row
+                                let spaceC = spaces_to_check[s][1]; // col
+                                if (!this.board[spaceR][spaceC].has_mine && !this.board[spaceR][spaceC].clicked) {
+                                    this.click_space(spaceR, spaceC);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                game_over() {
+                    // clicked a mine
+                    this.state = State.game_over;
+                    // change all mines to clicked
+                    for (let row = 0; row < Game.board.length; row++) {
+                        for (let col = 0; col < Game.board[row].length; col++) {
+                            if (Game.board[row][col].has_mine) {
+                                Game.board[row][col].clicked = true;
+                            }
+                        }
                     }
                 }
             }
 
+            // TODO This will come from a game menu
             mine_count = 10;
             board_width = 9;
             board_height = 9;
@@ -158,15 +208,17 @@
 		canvas.addEventListener("mousedown", function(event) {
             let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
             let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2)
-            if ( // check if a space was clicked
-                mouseX >= boardX
-                && mouseX < boardX + (board_width * space_size)
-                && mouseY >= boardY
-                && mouseY < boardY + (board_height * space_size)
-            ) {
-                let col = Math.floor((mouseX - boardX) / space_size);
-                let row = Math.floor((mouseY - boardY) / space_size);
-                Game.click_space(row, col);
+            if (Game.state === State.new_game) {
+                if ( // check if a space was clicked
+                    mouseX >= boardX
+                    && mouseX < boardX + (board_width * space_size)
+                    && mouseY >= boardY
+                    && mouseY < boardY + (board_height * space_size)
+                ) {
+                    let col = Math.floor((mouseX - boardX) / space_size);
+                    let row = Math.floor((mouseY - boardY) / space_size);
+                    Game.click_space(row, col);
+                }
             }
 		});
 
@@ -232,6 +284,7 @@
                     border_width,
                     false
                 );
+                
                 // spaces
                 let space_originX = originX + display_divider;
                 let space_originY = originY + display_divider + header_height + display_divider; // sets a 0,0 at the game board
@@ -256,11 +309,22 @@
                         }
                         // draw the individual spaces
                         if (Game.board[row][col].clicked) {
-                            ctx.font = (space_size / 2) + "px Courier New";
+                            ctx.font = (space_size / 2) + "px Verdana";
                             if (Game.board[row][col].has_mine) { 
                                 // draw a mine
+                                if (row === losing_mine[0] && col === losing_mine[1]) {
+                                    // draw a red background for the losing clicked mine
+                                    ctx.fillStyle = Color.red;
+                                    ctx.fillRect(
+                                        space_originX + (col * space_size),
+                                        space_originY + (row * space_size),
+                                        space_size,
+                                        space_size
+                                    );
+                                }
                                 draw_mine(
-                                    ctx, space_originX + (col * space_size) + (space_size / 2), 
+                                    ctx, 
+                                    space_originX + (col * space_size) + (space_size / 2), 
                                     space_originY + (row * space_size) + (space_size /2)
                                 );
                             } else if (Game.board[row][col].adjacent_mines > 0) {
@@ -272,9 +336,6 @@
                                     space_originX + (col * space_size) + (space_size * 0.33), 
                                     space_originY + (row * space_size) + (space_size * 0.75)
                                 );
-                            } else {
-                                // clear space
-                                // call function to open surronding non-mine spaces
                             }
                         } else { // space was not clicked
                             rect_with_border( // background
