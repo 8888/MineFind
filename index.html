@@ -1,7 +1,7 @@
 <html>
 <head><title>Mine Find</title></head>
 <body bgcolor="#ccddff">
-	<canvas id="canvasElement" width="640" height="640"></canvas>
+	<canvas id="canvasElement" width="640" height="640" oncontextmenu="return false;"></canvas>
 	<script type="text/javascript">
 		'use strict';
 		var canvas = document.getElementById("canvasElement");
@@ -32,6 +32,8 @@
         var display_divider = 10;
         var header_height = 40;
         var space_size = 20;
+        var time_start = 0; // milliseconds set from performance.now()
+        var time_elapsed = 0;
 
 		function init() {
             class GameState {
@@ -152,12 +154,14 @@
                     this.board = this.create_board(mine_count, board_width, board_height);
                     losing_mine = [];
                     flags_placed = 0;
+                    time_start = performance.now();
+                    time_elapsed = 0;
                     this.state = State.new_game;
                 }
 
                 click_space(row, col) {
                     let space = this.board[row][col];
-                    if (!space.clicked) {
+                    if (!space.clicked && !space.flagged) {
                         space.clicked = true;
                         if (space.has_mine) {
                             // game over
@@ -173,6 +177,19 @@
                                     this.click_space(spaceR, spaceC);
                                 }
                             }
+                        }
+                    }
+                }
+
+                toggle_flag(row, col) {
+                    let space = this.board[row][col];
+                    if (!space.clicked) {
+                        if (space.flagged) {
+                            space.flagged = false;
+                            flags_placed--;
+                        } else {
+                            space.flagged = true;
+                            flags_placed++;
                         }
                     }
                 }
@@ -205,9 +222,9 @@
 		}
 
 		// Handle User Input
-		canvas.addEventListener("mousedown", function(event) {
+		canvas.addEventListener("mousedown", function(event) { // left click
             let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
-            let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2)
+            let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2);
             if (Game.state === State.new_game) {
                 if ( // check if a space was clicked
                     mouseX >= boardX
@@ -217,7 +234,11 @@
                 ) {
                     let col = Math.floor((mouseX - boardX) / space_size);
                     let row = Math.floor((mouseY - boardY) / space_size);
-                    Game.click_space(row, col);
+                    if (event.button === 0) { // left click
+                        Game.click_space(row, col);
+                    } else if (event.button === 2) {
+                        Game.toggle_flag(row, col); // right click
+                    }
                 }
             }
 		});
@@ -284,6 +305,27 @@
                     border_width,
                     false
                 );
+
+                // mines remaining and time elapsed
+                let mines_remaining = mine_count - flags_placed;
+                ctx.font = (header_height * 0.75) + "px Verdana";
+                ctx.fillStyle = Color.red;
+                ctx.lineWidth = border_width / 2;
+                ctx.fillText(
+                    mines_remaining, 
+                    originX + display_divider + ((board_width * space_size) * 0.05), 
+                    originY + header_height
+                );
+                if (Game.state === State.new_game) {
+                    time_elapsed = Math.floor((performance.now() - time_start) * .001);
+                }
+                let timer_offset = time_elapsed.toString(); // find number of digits
+                timer_offset = parseInt(timer_offset.length) * .1;
+                ctx.fillText(
+                    time_elapsed, 
+                    originX + (board_width * space_size) - ((board_width * space_size) * timer_offset), 
+                    originY + header_height
+                );
                 
                 // spaces
                 let space_originX = originX + display_divider;
@@ -309,7 +351,6 @@
                         }
                         // draw the individual spaces
                         if (Game.board[row][col].clicked) {
-                            ctx.font = (space_size / 2) + "px Verdana";
                             if (Game.board[row][col].has_mine) { 
                                 // draw a mine
                                 if (row === losing_mine[0] && col === losing_mine[1]) {
@@ -329,9 +370,10 @@
                                 );
                             } else if (Game.board[row][col].adjacent_mines > 0) {
                                 // draw the number of adjacent mines
-                                ctx.strokeStyle = Color.number_colors[Game.board[row][col].adjacent_mines - 1];
-                                ctx.lineWidth = border_width / 2;
-                                ctx.strokeText(
+                                ctx.font = "bold " + (space_size / 2) + "px Verdana";                               
+                                ctx.fillStyle = Color.number_colors[Game.board[row][col].adjacent_mines - 1];
+                                //ctx.lineWidth = border_width / 2;
+                                ctx.fillText(
                                     Game.board[row][col].adjacent_mines, 
                                     space_originX + (col * space_size) + (space_size * 0.33), 
                                     space_originY + (row * space_size) + (space_size * 0.75)
@@ -351,6 +393,13 @@
                                 border_width,
                                 false
                             );
+                            if (Game.board[row][col].flagged) {
+                                draw_flag(
+                                    ctx,
+                                    space_originX + (col * space_size) + (space_size / 2),
+                                    space_originY + (row * space_size) + (space_size / 2)
+                                );
+                            }
                         }
                     }
                 }
@@ -388,7 +437,7 @@
                 ctx.stroke();
             }
 
-            function draw_mine(ctx, x, y) {
+            function draw_mine(ctx, x, y) { // center X and center Y
                 // draw the filled mine
                 ctx.beginPath();
                 ctx.fillStyle = Color.black;
@@ -409,6 +458,35 @@
                 ctx.beginPath();
                 ctx.fillStyle = Color.white;
                 ctx.arc(x - (space_size / 12), y - (space_size / 12), space_size / 15, 0, 2*Math.PI);
+                ctx.fill();
+            }
+
+            function draw_flag(ctx, x, y) { // center X and center Y
+                ctx.fillStyle = Color.black;
+                ctx.fillRect(
+                    x - (space_size * 0.25),
+                    y + (space_size * 0.3),
+                    space_size * 0.5,
+                    space_size * 0.1
+                );
+                ctx.fillRect(
+                    x - (space_size * 0.125),
+                    y + (space_size * 0.2),
+                    space_size * 0.25,
+                    space_size * 0.1
+                );
+                ctx.strokeStyle = Color.black;
+                ctx.lineWidth = border_width / 2;
+                ctx.beginPath();
+                ctx.moveTo(x, y + (space_size * 0.2));
+                ctx.lineTo(x, y - (space_size * 0.1));
+                ctx.stroke();
+                ctx.fillStyle = Color.red;
+                ctx.beginPath();
+                ctx.moveTo(x + (space_size * 0.05), y);
+                ctx.lineTo(x + (space_size * 0.05), y - (space_size * 0.3));
+                ctx.lineTo(x - (space_size * 0.3), y - ((space_size * 0.3) / 2));
+                ctx.closePath();
                 ctx.fill();
             }
 
