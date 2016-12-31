@@ -7,22 +7,26 @@
 		var canvas = document.getElementById("canvasElement");
 		canvas.tabIndex = 0;
 		canvas.focus();
-
+        // canvas parameters
 		var canvas_width = canvas.width;
 		var canvas_height = canvas.height;
 		var canvas_bounds = canvas.getBoundingClientRect();
 		var ctx = canvas.getContext("2d");
-
+        // mouse location
         var mouseX = null,
             mouseY = null;
-
+        //objects
         var State = null;
         var Game = null;
+        var Color = null;
+        // game parameters
         var mine_count = 0;
         var board_width = 0;
         var board_height = 0;
-
-        var border_width = 2;
+        // display parameters
+        var display_offsetX = 50;
+        var display_offsetY = 50;
+        var border_width = 2; // Even number creates crisp lines
         var display_divider = 10;
         var header_height = 40;
         var space_size = 20;
@@ -41,8 +45,27 @@
                 constructor() {
                     this.has_mine = false;
                     this.clicked = false;
-                    this.was_flagged = false;
+                    this.flagged = false;
                     this.adjacent_mines = 0;
+                }
+            }
+
+            class HTMLColor {
+                // HTML colors
+                constructor() {
+                    this.black = "#000000";
+                    this.white = "#ffffff";
+                    this.light_gray = "#cccccc";
+                    this.dark_gray = "#777777";
+                    this.blue = "#192cff";
+                    this.green = "#1f9141";
+                    this.red = "#ff0000";
+                    this.dark_blue = "#000b87";
+                    this.dark_green = "#005118";
+                    this.dark_red = "#6b0000";
+                    this.light_blue = "#a0a8ff";
+                    this.light_green = "#8cffae";
+                    this.number_colors = [this.blue, this.green, this.red, this.dark_blue, this.dark_green, this.dark_red, this.light_blue, this.light_green];
                 }
             }
 
@@ -111,6 +134,12 @@
                     this.board = this.create_board(mine_count, board_width, board_height);
                     this.state = State.new_game;
                 }
+
+                click_space(row, col) {
+                    if (!this.board[row][col].clicked) {
+                        this.board[row][col].clicked = true;
+                    }
+                }
             }
 
             mine_count = 10;
@@ -118,6 +147,7 @@
             board_height = 9;
             State = new GameState();
             Game = new GameLogic();
+            Color = new HTMLColor();
             Game.new_game();
 
             // Tests -- Uncomment to run
@@ -126,9 +156,20 @@
 
 		// Handle User Input
 		canvas.addEventListener("mousedown", function(event) {
-			console.log("x: ", mouseX);
-            console.log("y: ", mouseY);
+            let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
+            let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2)
+            if ( // check if a space was clicked
+                mouseX >= boardX
+                && mouseX < boardX + (board_width * space_size)
+                && mouseY >= boardY
+                && mouseY < boardY + (board_height * space_size)
+            ) {
+                let col = Math.floor((mouseX - boardX) / space_size);
+                let row = Math.floor((mouseY - boardY) / space_size);
+                Game.click_space(row, col);
+            }
 		});
+
 		canvas.addEventListener("mousemove", function(event) {
 			mouseX = event.clientX - canvas_bounds.left;
 			mouseY = event.clientY - canvas_bounds.top;
@@ -146,8 +187,8 @@
 			ctx.clearRect(0, 0, canvas_width, canvas_height);
 
             function draw_board() {
-                let originX = canvas_bounds.left + 50;
-                let originY = canvas_bounds.top + 50;
+                let originX = canvas_bounds.left + display_offsetX;
+                let originY = canvas_bounds.top + display_offsetY;
                 let display_width = display_divider + (board_width * space_size) + display_divider;
                 let display_height = display_divider + header_height + display_divider + (board_height * space_size) + display_divider;
                 
@@ -157,13 +198,13 @@
                     originY,
                     display_width,
                     display_height,
-                    "#ffffff", // white
-                    "#777777", // dark gray
-                    "#777777",
-                    "#ffffff",
+                    Color.white,
+                    Color.dark_gray,
+                    Color.dark_gray,
+                    Color.white,
                     border_width,
                     true,
-                    "#bfbfbf" // light gray
+                    Color.light_gray
                 );
                 rect_with_border( // header borders
                     ctx, 
@@ -171,10 +212,10 @@
                     originY + display_divider, 
                     board_width * space_size + border_width, 
                     header_height, 
-                    "#777777", 
-                    "#ffffff", 
-                    "#ffffff", 
-                    "#777777", 
+                    Color.dark_gray, 
+                    Color.white, 
+                    Color.white, 
+                    Color.dark_gray, 
                     border_width, 
                     false
                 );
@@ -184,10 +225,10 @@
                     originY + display_divider + header_height + display_divider - (border_width / 2), 
                     board_width * space_size + border_width, 
                     board_height * space_size + border_width, 
-                    "#777777", 
-                    "#ffffff", 
-                    "#ffffff", 
-                    "#777777", 
+                    Color.dark_gray, 
+                    Color.white, 
+                    Color.white, 
+                    Color.dark_gray, 
                     border_width,
                     false
                 );
@@ -199,24 +240,41 @@
                         // draw the grid beheind the unclicked spaces
                         if (row === 0 && col > 0) { // row: only draw once when making the first row. col: dont draw on the border
                             ctx.beginPath() // verticle grid lines
-                            ctx.strokeStyle = "#777777"; // dark gray
+                            ctx.strokeStyle = Color.dark_gray; // dark gray
+                            ctx.lineWidth = border_width / 2;
                             ctx.moveTo(space_originX + (col * space_size), space_originY);
-                            ctx.lineTo(space_originX + (col * space_size), space_originY + (Game.board[row].length * space_size));
+                            ctx.lineTo(space_originX + (col * space_size), space_originY + (board_height * space_size));
                             ctx.stroke();
                         }
                         if (col === 0 && row > 0) {
                             ctx.beginPath() // horizontal grid lines
-                            ctx.strokeStyle = "#777777"; // dark gray
+                            ctx.strokeStyle = Color.dark_gray; // dark gray
+                            ctx.lineWidth = border_width / 2;
                             ctx.moveTo(space_originX, space_originY + (row * space_size));
-                            ctx.lineTo(space_originX + (Game.board.length * space_size), space_originY + (row * space_size));
+                            ctx.lineTo(space_originX + (board_width * space_size), space_originY + (row * space_size));
                             ctx.stroke();
                         }
                         // draw the individual spaces
                         if (Game.board[row][col].clicked) {
-                            if (Game.board[row][col].has_mine) {
+                            ctx.font = (space_size / 2) + "px Courier New";
+                            if (Game.board[row][col].has_mine) { 
                                 // draw a mine
+                                draw_mine(
+                                    ctx, space_originX + (col * space_size) + (space_size / 2), 
+                                    space_originY + (row * space_size) + (space_size /2)
+                                );
                             } else if (Game.board[row][col].adjacent_mines > 0) {
-                                // draw the number of mines
+                                // draw the number of adjacent mines
+                                ctx.strokeStyle = Color.number_colors[Game.board[row][col].adjacent_mines - 1];
+                                ctx.lineWidth = border_width / 2;
+                                ctx.strokeText(
+                                    Game.board[row][col].adjacent_mines, 
+                                    space_originX + (col * space_size) + (space_size * 0.33), 
+                                    space_originY + (row * space_size) + (space_size * 0.75)
+                                );
+                            } else {
+                                // clear space
+                                // call function to open surronding non-mine spaces
                             }
                         } else { // space was not clicked
                             rect_with_border( // background
@@ -225,10 +283,10 @@
                                 space_originY + (row * space_size),
                                 space_size,
                                 space_size,
-                                "#ffffff",
-                                "#777777",
-                                "#777777",
-                                "#ffffff",
+                                Color.white,
+                                Color.dark_gray,
+                                Color.dark_gray,
+                                Color.white,
                                 border_width,
                                 false
                             );
@@ -242,6 +300,7 @@
                     ctx.fillStyle = fill_color;
                     ctx.fillRect(x, y, width, height);
                 }
+                ctx.lineWidth = border_size;
                 // upper border
                 ctx.beginPath();
                 ctx.strokeStyle = upper_color;
@@ -266,6 +325,30 @@
                 ctx.moveTo(x + (border_size / 2), y + height);
                 ctx.lineTo(x + (border_size / 2), y);
                 ctx.stroke();
+            }
+
+            function draw_mine(ctx, x, y) {
+                // draw the filled mine
+                ctx.beginPath();
+                ctx.fillStyle = Color.black;
+                ctx.arc(x, y, space_size / 4, 0, 2*Math.PI);
+                ctx.fill();
+                // draw the spikes on the mine
+                ctx.strokeStyle = Color.black;
+                ctx.lineWidth = border_width / 2;
+                let angle = (2 * Math.PI) / 8; // Angle in radians
+                let length = space_size / 3; // length of each line
+                for (let line = 0; line < 8; line ++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + length * Math.cos(angle * line), y + length * Math.sin(angle * line));
+                    ctx.stroke();
+                }
+                // draw the reflection spot
+                ctx.beginPath();
+                ctx.fillStyle = Color.white;
+                ctx.arc(x - (space_size / 12), y - (space_size / 12), space_size / 15, 0, 2*Math.PI);
+                ctx.fill();
             }
 
             draw_board();
