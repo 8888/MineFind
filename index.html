@@ -24,7 +24,7 @@
         var board_width = 0;
         var board_height = 0;
         var flags_placed = 0;
-        var losing_mine = []; // row and col of losing mine       
+        var losing_mine = []; // row and col of losing mine
         // display parameters
         var display_offsetX = 50;
         var display_offsetY = 50;
@@ -42,6 +42,7 @@
                     this.menu = "Menu";
                     this.new_game = "New Game";
                     this.game_over = "Game Over";
+                    this.victory = "Victory";
                 }
             }
 
@@ -62,6 +63,7 @@
                     this.white = "#ffffff";
                     this.light_gray = "#cccccc";
                     this.dark_gray = "#777777";
+                    this.yellow = "#fff600";
                     this.blue = "#192cff";
                     this.green = "#1f9141";
                     this.red = "#ff0000";
@@ -79,12 +81,14 @@
                 constructor() {
                     this.board = null;
                     this.state = null;
+                    this.mine_locations = null;
                 }
 
                 create_board(mines, width, height) {
                     // Returns an array of a board of size width x height with a given number of mines
                     var board_length = width * height;
                     var board = []; // matrix of spaces. row x column
+                    this.mine_locations = [];
                     for (let r = 0; r < board_height; r++) { // add the spaces
                         let row = [];
                         for (let c = 0; c < board_width; c++) {
@@ -103,17 +107,16 @@
                     }
                     for (let row = 0; row < board.length; row++) { // add the adjacent mine counter
                         for (let col = 0; col < board[row].length; col++) {
-                            if (!board[row][col].has_mine) { // spaces with mines do not show a number
-                                let mines_near = 0;
+                            if (board[row][col].has_mine) {
+                                this.mine_locations.push([row,col]);
                                 let spaces_to_check = this.adjacent_spaces(row, col);
                                 for (let s = 0; s < spaces_to_check.length; s++) {
                                     let spaceR = spaces_to_check[s][0]; // row
                                     let spaceC = spaces_to_check[s][1]; // col
-                                    if (board[spaceR][spaceC].has_mine) {
-                                        mines_near++;
+                                    if (!board[spaceR][spaceC].has_mine) { // spaces with mines do not show a number
+                                        board[spaceR][spaceC].adjacent_mines++;
                                     }
                                 }
-                                board[row][col].adjacent_mines = mines_near;
                             }
                         }
                     }
@@ -206,6 +209,10 @@
                         }
                     }
                 }
+
+                game_won() {
+                    this.state = State.victory;
+                }
             }
 
             // TODO This will come from a game menu
@@ -225,6 +232,8 @@
 		canvas.addEventListener("mousedown", function(event) { // left click
             let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
             let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2);
+            let headerX = canvas_bounds.left + display_offsetX + display_divider + (board_width * space_size / 2) - (header_height * 0.375);
+            let headerY = canvas_bounds.top + display_offsetY + display_divider + (header_height / 2) - (header_height * 0.375);
             if (Game.state === State.new_game) {
                 if ( // check if a space was clicked
                     mouseX >= boardX
@@ -241,6 +250,14 @@
                     }
                 }
             }
+            if ( // check if the face was clicked
+                mouseX >= headerX
+                && mouseX < headerX + header_height * 0.75
+                && mouseY >= headerY
+                && mouseY < headerY + header_height * 0.75
+            ) {
+                Game.new_game();
+            }
 		});
 
 		canvas.addEventListener("mousemove", function(event) {
@@ -253,6 +270,21 @@
 		function update(delta) {
 			gameDelta = delta;
             frameCount++;
+
+            // Check for victory
+            if (flags_placed === mine_count) {
+                let count = 0;
+                for (let m = 0; m < Game.mine_locations.length; m++) {
+                    let row = Game.mine_locations[m][0];
+                    let col = Game.mine_locations[m][1];
+                    if (Game.board[row][col].flagged) {
+                        count++;
+                    }
+                }
+                if (count === mine_count) {
+                    Game.game_won();
+                }
+            }
 		}
 
         // Draw elements to the screen
@@ -326,6 +358,77 @@
                     originX + (board_width * space_size) - ((board_width * space_size) * timer_offset), 
                     originY + header_height
                 );
+                
+                // smiley face
+                rect_with_border( // smiley face button
+                    ctx, 
+                    originX + display_divider + (board_width * space_size / 2) - (header_height * 0.375), 
+                    originY + display_divider + (header_height / 2) - (header_height * 0.375), 
+                    header_height * 0.75,
+                    header_height * 0.75,
+                    Color.white,
+                    Color.dark_gray,
+                    Color.dark_gray,
+                    Color.white,
+                    border_width,
+                    false
+                );
+                ctx.fillStyle = Color.yellow;
+                ctx.beginPath() // background
+                ctx.arc(
+                    originX + display_divider + (board_width * space_size / 2),
+                    originY + display_divider + (header_height / 2),
+                    header_height * 0.25,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+                ctx.strokeStyle = Color.black;
+                ctx.lineWidth = border_width / 2;
+                ctx.beginPath() // outline
+                ctx.arc( 
+                    originX + display_divider + (board_width * space_size / 2),
+                    originY + display_divider + (header_height / 2),
+                    header_height * 0.25,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.stroke();
+                ctx.beginPath(); // eyes
+                ctx.fillStyle = Color.black
+                ctx.arc( // left eye
+                    originX + display_divider + (board_width * space_size / 2) - (header_height * 0.1),
+                    originY + display_divider + (header_height / 2) - (header_height * 0.06),
+                    header_height * 0.05,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.arc( // right eye
+                    originX + display_divider + (board_width * space_size / 2) + (header_height * 0.1),
+                    originY + display_divider + (header_height / 2) - (header_height * 0.06),
+                    header_height * 0.05,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+                // mouth
+                let arc_start = 0.15 * Math.PI;
+                let arc_end = 0.85 * Math.PI;
+                let arc_centerY = originY + display_divider + (header_height / 2);
+                if (Game.state === State.game_over) { // frown
+                    arc_start = 1.15 * Math.PI;
+                    arc_end = 1.85 * Math.PI;
+                    arc_centerY += header_height * 0.2;
+                }
+                ctx.beginPath()
+                ctx.arc(
+                    originX + display_divider + (board_width * space_size / 2),
+                    arc_centerY,
+                    header_height * 0.15,
+                    arc_start,
+                    arc_end
+                );
+                ctx.stroke();
                 
                 // spaces
                 let space_originX = originX + display_divider;
