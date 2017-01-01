@@ -19,15 +19,14 @@
         var State = null;
         var Game = null;
         var Color = null;
+        var modes = null; // array of GameMode objects
         // game parameters
-        var mine_count = 0;
-        var board_width = 0;
-        var board_height = 0;
+        var current_mode = null;
         var flags_placed = 0;
         var losing_mine = []; // row and col of losing mine
         // display parameters
-        var display_offsetX = 50;
-        var display_offsetY = 50;
+        var display_offsetX = 10;
+        var display_offsetY = 10;
         var border_width = 2; // Even number creates crisp lines
         var display_divider = 10;
         var header_height = 40;
@@ -39,7 +38,6 @@
             class GameState {
                 // State of the game
                 constructor() {
-                    this.menu = "Menu";
                     this.new_game = "New Game";
                     this.game_over = "Game Over";
                     this.victory = "Victory";
@@ -76,6 +74,16 @@
                 }
             }
 
+            class GameMode {
+                // Mode to adjust game setings
+                constructor (name, board_width, board_height, mines) {
+                    this.name = name;
+                    this.width = board_width;
+                    this.height = board_height;
+                    this.mines = mines;
+                }
+            }
+
             class GameLogic {
                 // Main game logic
                 constructor() {
@@ -86,19 +94,18 @@
 
                 create_board(mines, width, height) {
                     // Returns an array of a board of size width x height with a given number of mines
-                    var board_length = width * height;
                     var board = []; // matrix of spaces. row x column
                     this.mine_locations = [];
-                    for (let r = 0; r < board_height; r++) { // add the spaces
+                    for (let r = 0; r < height; r++) { // add the spaces
                         let row = [];
-                        for (let c = 0; c < board_width; c++) {
+                        for (let c = 0; c < width; c++) {
                             row.push(new Space);
                         }
                         board.push(row);
                     }
                     for (var m = 0; m < mines; m++) { // add the mines
-                        let indexR = this.rng(0, board_height); // row to place the mine
-                        let indexC = this.rng(0, board_width); // column to place the mine
+                        let indexR = this.rng(0, height); // row to place the mine
+                        let indexC = this.rng(0, width); // column to place the mine
                         if (board[indexR][indexC].has_mine) {
                            m--; // Can not add a mine twice, try a different space
                         } else {
@@ -144,7 +151,7 @@
                     for (let s = 0; s < spaces.length;) {
                         let spaceR = spaces[s][0]; // row
                         let spaceC = spaces[s][1]; // col
-                        if (spaceR >= 0 && spaceR < board_height && spaceC >= 0 && spaceC < board_width) { // check for out of range
+                        if (spaceR >= 0 && spaceR < current_mode.height && spaceC >= 0 && spaceC < current_mode.width) { // check for out of range
                             s++
                         } else { // out of range
                             spaces.splice(s, 1); // remove that space
@@ -154,7 +161,7 @@
                 }
 
                 new_game() {
-                    this.board = this.create_board(mine_count, board_width, board_height);
+                    this.board = this.create_board(current_mode.mines, current_mode.width, current_mode.height);
                     losing_mine = [];
                     flags_placed = 0;
                     time_start = performance.now();
@@ -215,31 +222,35 @@
                 }
             }
 
-            // TODO This will come from a game menu
-            mine_count = 10;
-            board_width = 9;
-            board_height = 9;
+            modes = [
+                new GameMode("Beginner", 9, 9, 10),
+                new GameMode("Intermediate", 16, 16, 40),
+                new GameMode("Expert", 30, 16, 99)
+            ];
+            current_mode = modes[0];
             State = new GameState();
             Game = new GameLogic();
             Color = new HTMLColor();
             Game.new_game();
 
             // Tests -- Uncomment to run
-            //Test.test_board(Game.board, board_width, board_height, mine_count);
+            //Test.test_board(Game.board, current_mode.width, current_mode.height, current_mode.mines);
 		}
 
 		// Handle User Input
 		canvas.addEventListener("mousedown", function(event) { // left click
             let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
             let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2);
-            let headerX = canvas_bounds.left + display_offsetX + display_divider + (board_width * space_size / 2) - (header_height * 0.375);
+            let headerX = canvas_bounds.left + display_offsetX + display_divider + (current_mode.width * space_size / 2) - (header_height * 0.375);
             let headerY = canvas_bounds.top + display_offsetY + display_divider + (header_height / 2) - (header_height * 0.375);
+            let menuX = boardX;
+            let menuY = boardY + (current_mode.height * space_size) + display_divider + (space_size / 2);
             if (Game.state === State.new_game) {
                 if ( // check if a space was clicked
                     mouseX >= boardX
-                    && mouseX < boardX + (board_width * space_size)
+                    && mouseX < boardX + (current_mode.width * space_size)
                     && mouseY >= boardY
-                    && mouseY < boardY + (board_height * space_size)
+                    && mouseY < boardY + (current_mode.height * space_size)
                 ) {
                     let col = Math.floor((mouseX - boardX) / space_size);
                     let row = Math.floor((mouseY - boardY) / space_size);
@@ -258,6 +269,17 @@
             ) {
                 Game.new_game();
             }
+            for (let m = 0; m < modes.length; m++) {
+                if ( // check if a menu option is clicked
+                    mouseX >= menuX
+                    && mouseX < menuX + space_size
+                    && mouseY >= menuY + (space_size * 1.5 * m)
+                    && mouseY < menuY + (space_size * 1.5 * m) + space_size
+                ) {
+                    current_mode = modes[m];
+                    Game.new_game();
+                }
+            }
 		});
 
 		canvas.addEventListener("mousemove", function(event) {
@@ -272,7 +294,7 @@
             frameCount++;
 
             // Check for victory
-            if (flags_placed === mine_count) {
+            if (flags_placed === current_mode.mines) {
                 let count = 0;
                 for (let m = 0; m < Game.mine_locations.length; m++) {
                     let row = Game.mine_locations[m][0];
@@ -281,7 +303,7 @@
                         count++;
                     }
                 }
-                if (count === mine_count) {
+                if (count === current_mode.mines) {
                     Game.game_won();
                 }
             }
@@ -294,8 +316,8 @@
             function draw_board() {
                 let originX = canvas_bounds.left + display_offsetX;
                 let originY = canvas_bounds.top + display_offsetY;
-                let display_width = display_divider + (board_width * space_size) + display_divider;
-                let display_height = display_divider + header_height + display_divider + (board_height * space_size) + display_divider;
+                let display_width = display_divider + (current_mode.width * space_size) + display_divider;
+                let display_height = display_divider + header_height + display_divider + (current_mode.height * space_size) + display_divider;
                 
                 rect_with_border( // background
                     ctx,
@@ -315,7 +337,7 @@
                     ctx, 
                     originX + display_divider - (border_width / 2), 
                     originY + display_divider, 
-                    board_width * space_size + border_width, 
+                    current_mode.width * space_size + border_width, 
                     header_height, 
                     Color.dark_gray, 
                     Color.white, 
@@ -328,8 +350,8 @@
                     ctx, 
                     originX + display_divider - (border_width / 2),
                     originY + display_divider + header_height + display_divider - (border_width / 2), 
-                    board_width * space_size + border_width, 
-                    board_height * space_size + border_width, 
+                    current_mode.width * space_size + border_width, 
+                    current_mode.height * space_size + border_width, 
                     Color.dark_gray, 
                     Color.white, 
                     Color.white, 
@@ -339,13 +361,13 @@
                 );
 
                 // mines remaining and time elapsed
-                let mines_remaining = mine_count - flags_placed;
+                let mines_remaining = current_mode.mines - flags_placed;
                 ctx.font = (header_height * 0.75) + "px Verdana";
                 ctx.fillStyle = Color.red;
                 ctx.lineWidth = border_width / 2;
                 ctx.fillText(
                     mines_remaining, 
-                    originX + display_divider + ((board_width * space_size) * 0.05), 
+                    originX + display_divider + ((current_mode.width * space_size) * 0.05), 
                     originY + header_height
                 );
                 if (Game.state === State.new_game) {
@@ -355,14 +377,14 @@
                 timer_offset = parseInt(timer_offset.length) * .1;
                 ctx.fillText(
                     time_elapsed, 
-                    originX + (board_width * space_size) - ((board_width * space_size) * timer_offset), 
+                    originX + (current_mode.width * space_size) - ((current_mode.width * space_size) * timer_offset), 
                     originY + header_height
                 );
                 
                 // smiley face
                 rect_with_border( // smiley face button
                     ctx, 
-                    originX + display_divider + (board_width * space_size / 2) - (header_height * 0.375), 
+                    originX + display_divider + (current_mode.width * space_size / 2) - (header_height * 0.375), 
                     originY + display_divider + (header_height / 2) - (header_height * 0.375), 
                     header_height * 0.75,
                     header_height * 0.75,
@@ -376,7 +398,7 @@
                 ctx.fillStyle = Color.yellow;
                 ctx.beginPath() // background
                 ctx.arc(
-                    originX + display_divider + (board_width * space_size / 2),
+                    originX + display_divider + (current_mode.width * space_size / 2),
                     originY + display_divider + (header_height / 2),
                     header_height * 0.25,
                     0,
@@ -387,7 +409,7 @@
                 ctx.lineWidth = border_width / 2;
                 ctx.beginPath() // outline
                 ctx.arc( 
-                    originX + display_divider + (board_width * space_size / 2),
+                    originX + display_divider + (current_mode.width * space_size / 2),
                     originY + display_divider + (header_height / 2),
                     header_height * 0.25,
                     0,
@@ -397,14 +419,14 @@
                 ctx.beginPath(); // eyes
                 ctx.fillStyle = Color.black
                 ctx.arc( // left eye
-                    originX + display_divider + (board_width * space_size / 2) - (header_height * 0.1),
+                    originX + display_divider + (current_mode.width * space_size / 2) - (header_height * 0.1),
                     originY + display_divider + (header_height / 2) - (header_height * 0.06),
                     header_height * 0.05,
                     0,
                     2 * Math.PI
                 );
                 ctx.arc( // right eye
-                    originX + display_divider + (board_width * space_size / 2) + (header_height * 0.1),
+                    originX + display_divider + (current_mode.width * space_size / 2) + (header_height * 0.1),
                     originY + display_divider + (header_height / 2) - (header_height * 0.06),
                     header_height * 0.05,
                     0,
@@ -422,7 +444,7 @@
                 }
                 ctx.beginPath()
                 ctx.arc(
-                    originX + display_divider + (board_width * space_size / 2),
+                    originX + display_divider + (current_mode.width * space_size / 2),
                     arc_centerY,
                     header_height * 0.15,
                     arc_start,
@@ -441,7 +463,7 @@
                             ctx.strokeStyle = Color.dark_gray; // dark gray
                             ctx.lineWidth = border_width / 2;
                             ctx.moveTo(space_originX + (col * space_size), space_originY);
-                            ctx.lineTo(space_originX + (col * space_size), space_originY + (board_height * space_size));
+                            ctx.lineTo(space_originX + (col * space_size), space_originY + (current_mode.height * space_size));
                             ctx.stroke();
                         }
                         if (col === 0 && row > 0) {
@@ -449,7 +471,7 @@
                             ctx.strokeStyle = Color.dark_gray; // dark gray
                             ctx.lineWidth = border_width / 2;
                             ctx.moveTo(space_originX, space_originY + (row * space_size));
-                            ctx.lineTo(space_originX + (board_width * space_size), space_originY + (row * space_size));
+                            ctx.lineTo(space_originX + (current_mode.width * space_size), space_originY + (row * space_size));
                             ctx.stroke();
                         }
                         // draw the individual spaces
@@ -505,6 +527,42 @@
                             }
                         }
                     }
+                }
+            }
+
+            function draw_menu() {
+                let originX = canvas_bounds.left + display_offsetX;
+                let originY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider + (current_mode.height * space_size) + display_divider;
+                for (let m = 0; m < modes.length; m++) {
+                    ctx.strokeStyle = Color.dark_gray;
+                    ctx.lineWidth = border_width / 2;
+                    ctx.beginPath() // button outline
+                    ctx.arc( 
+                        originX + display_divider + (space_size / 2),
+                        originY + (display_divider * 2) + (space_size * 1.5 * m),
+                        space_size / 2,
+                        0,
+                        2 * Math.PI
+                    );
+                    ctx.stroke();
+                    if (current_mode.name === modes[m].name) { // fill in the selected button
+                        ctx.fillStyle = Color.black;
+                        ctx.arc( 
+                            originX + display_divider + (space_size / 2),
+                            originY + (display_divider * 2) + (space_size * 1.5 * m),
+                            space_size / 2,
+                            0,
+                            2 * Math.PI
+                        );
+                        ctx.fill();
+                    }
+                    ctx.fillStyle = Color.black;
+                    ctx.font = space_size *.75 + "px Verdana";
+                    ctx.fillText(
+                        modes[m].name + ": " + modes[m].width + " x " + modes[m].height + " board with " + modes[m].mines + " mines",
+                        originX + display_divider + (space_size / 2) + space_size,
+                        originY + (display_divider * 2) + (space_size * 0.3) + (space_size * 1.5 * m)
+                    );
                 }
             }
 
@@ -594,6 +652,8 @@
             }
 
             draw_board();
+            draw_menu();
+
 		}
 
 		window.onload = function() {
