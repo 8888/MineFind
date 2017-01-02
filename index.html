@@ -17,6 +17,10 @@
             mouseY = null;
         var left_click = false;
         var right_click = false;
+        var mouse_row = null;
+        var mouse_col = null;
+        var left_release = null; // time when left click was released. For checking for double click
+        var right_release = null; // time when right click was released. For checking for double click
         //objects
         var State = null;
         var Game = null;
@@ -35,6 +39,7 @@
         var space_size = 20;
         var time_start = 0; // milliseconds set from performance.now()
         var time_elapsed = 0;
+        var spaces_to_not_draw = []; // array of spaces to not draw when double clicked
 
 		function init() {
             class GameState {
@@ -193,6 +198,28 @@
                     }
                 }
 
+                double_click_space(row, col) {
+                    let space = this.board[row][col];
+                    if (space.clicked) {
+                        let spaces_to_check = this.adjacent_spaces(row, col); // returns array of [row,col]
+                        let adjacent_flags = 0;
+                        for (let i = 0; i < 2; i++) { // check for flags, then click spaces
+                            for (let s = 0; s < spaces_to_check.length; s++) {
+                                let spaceR = spaces_to_check[s][0]; // row
+                                let spaceC = spaces_to_check[s][1]; // col
+                                if (i === 0 && this.board[spaceR][spaceC].flagged) { // on first iteration only
+                                    adjacent_flags++
+                                } else if (i === 1 && !this.board[spaceR][spaceC].flagged) { // flags === mines because loop wasn't broken
+                                    Game.click_space(spaceR, spaceC);
+                                }
+                            }
+                            if (space.adjacent_mines != adjacent_flags) {
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 toggle_flag(row, col) {
                     let space = this.board[row][col];
                     if (!space.clicked) {
@@ -253,22 +280,6 @@
             let headerY = canvas_bounds.top + display_offsetY + display_divider + (header_height / 2) - (header_height * 0.375);
             let menuX = boardX;
             let menuY = boardY + (current_mode.height * space_size) + display_divider + (space_size / 2);
-            if (Game.state === State.new_game) {
-                if ( // check if a space was clicked
-                    mouseX >= boardX
-                    && mouseX < boardX + (current_mode.width * space_size)
-                    && mouseY >= boardY
-                    && mouseY < boardY + (current_mode.height * space_size)
-                ) {
-                    let col = Math.floor((mouseX - boardX) / space_size);
-                    let row = Math.floor((mouseY - boardY) / space_size);
-                    if (event.button === 0) { // left click
-                        Game.click_space(row, col);
-                    } else if (event.button === 2) {
-                        Game.toggle_flag(row, col); // right click
-                    }
-                }
-            }
             if ( // check if the face was clicked
                 mouseX >= headerX
                 && mouseX < headerX + header_height * 0.75
@@ -288,20 +299,48 @@
                     Game.new_game();
                 }
             }
+            if (Game.state === State.new_game) {
+                if (event.button === 2 && mouse_row != null && mouse_col != null) { // right click
+                    Game.toggle_flag(mouse_row, mouse_col);
+                }
+            }
 		});
 
         canvas.addEventListener("mouseup", function(event) {
+            let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
+            let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2);
+            if (Game.state === State.new_game) {
+                if (event.button === 0 && mouse_row != null && mouse_col != null) { // release left click
+                    Game.click_space(mouse_row, mouse_col);
+                }
+            }
             if (event.button === 0) {
                 left_click = false;
-            }
-            if (event.button === 2) {
+                left_release = performance.now();
+            } else if (event.button === 2) {
                 right_click = false;
+                right_release = performance.now();
             }
+            spaces_to_not_draw = [];
         });
 
 		canvas.addEventListener("mousemove", function(event) {
 			mouseX = event.clientX - canvas_bounds.left;
 			mouseY = event.clientY - canvas_bounds.top;
+            let boardX = canvas_bounds.left + display_offsetX + display_divider - (border_width / 2);
+            let boardY = canvas_bounds.top + display_offsetY + display_divider + header_height + display_divider - (border_width / 2);
+            if ( // check if a space was clicked
+                mouseX >= boardX
+                && mouseX < boardX + (current_mode.width * space_size)
+                && mouseY >= boardY
+                && mouseY < boardY + (current_mode.height * space_size)
+            ) {
+                mouse_col = Math.floor((mouseX - boardX) / space_size);
+                mouse_row = Math.floor((mouseY - boardY) / space_size);
+            } else {
+                mouse_col = null;
+                mouse_row = null;
+            }
 		});
 
 		var gameDelta = null,
@@ -309,6 +348,32 @@
 		function update(delta) {
 			gameDelta = delta;
             frameCount++;
+
+            // check for double click
+            if (left_click && right_click && mouse_row != null && mouse_col != null) {
+                spaces_to_not_draw = [];
+                let spaces_to_check = Game.adjacent_spaces(mouse_row, mouse_col); // returns array of [row,col]
+                for (let s = 0; s < spaces_to_check.length; s++) {
+                    let spaceR = spaces_to_check[s][0]; // row
+                    let spaceC = spaces_to_check[s][1]; // col
+                    spaces_to_not_draw.push([spaceR, spaceC]);
+                }
+            }
+
+            let current_time = performance.now(); // milliseconds
+            if (
+                Game.state === State.new_game
+                && left_release != null
+                && right_release != null
+                && mouse_row != null
+                && mouse_col != null
+                && current_time - right_release <= 62.5 // 16th of a second
+                && current_time - left_release <= 62.5
+            ) {
+                Game.double_click_space(mouse_row, mouse_col);
+                left_release = null;
+                right_release = null;
+            }
 
             // Check for victory
             let all_spaces_clicked = true;
@@ -551,6 +616,34 @@
                                 );
                             }
                         } else { // space was not clicked
+                            if ( // makes the space look clicked until the mouse is released
+                                Game.state === State.new_game
+                                && !Game.board[row][col].flagged
+                                && left_click 
+                                && row === mouse_row 
+                                && col === mouse_col
+                            ) { // move to the next iteration of the loop and don't draw this space
+                                continue;
+                            }
+                            if (
+                                Game.state === State.new_game
+                                && spaces_to_not_draw.length > 0
+                                && !Game.board[row][col].flagged
+                            ) {
+                                let skip_space = false;
+                                for (let s = 0; s < spaces_to_not_draw.length; s++) {
+                                    if (
+                                        spaces_to_not_draw[s][0] === row
+                                        && spaces_to_not_draw[s][1] === col
+                                    ) {
+                                        skip_space = true;
+                                        break;
+                                    }
+                                }
+                                if (skip_space) {
+                                    continue;
+                                }
+                            }
                             rect_with_border( // background
                                 ctx,
                                 space_originX + (col * space_size),
