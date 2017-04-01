@@ -1,6 +1,7 @@
 # MineFind
 In-browser Minesweeper clone<br>
-https://betterin30days.github.io/MineFind/
+https://betterin30days.github.io/MineFind/<br>
+<img src="https://github.com/betterin30days/MineFind/blob/master/screenshots/mines.gif"><br>
 
 # Features
 This is a full-featured Minesweeper clone with 3 difficulties. The play can open spaces, flag known mines, and clear multiple spaces at once.
