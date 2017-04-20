@@ -4,7 +4,7 @@ https://betterin30days.github.io/MineFind/<br>
 <img src="https://github.com/betterin30days/MineFind/blob/master/screenshots/mines.gif"><br>
 
 # Features
-This is a full-featured Minesweeper clone with 3 difficulties. The play can open spaces, flag known mines, and clear multiple spaces at once.
+This is a full-featured Minesweeper clone with 3 difficulties. The player can open spaces, flag known mines, and clear multiple spaces at once.
 
 # Controls
 -Left mouse click to open a space<br>
