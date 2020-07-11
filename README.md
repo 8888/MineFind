@@ -1,6 +1,6 @@
 # MineFind
 In-browser Minesweeper clone<br>
-https://betterin30days.github.io/MineFind/<br>
+https://8888.github.io/MineFind/<br>
 <img src="https://github.com/betterin30days/MineFind/blob/master/screenshots/mines.gif"><br>
 
 # Features
